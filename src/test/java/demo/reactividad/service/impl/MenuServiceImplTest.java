@@ -16,6 +16,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import demo.reactividad.dto.request.MenuCreateRequestDTO;
+import demo.reactividad.dto.request.MenuUpdateRequestDTO;
 import demo.reactividad.dto.response.MenuResponseDTO;
 import demo.reactividad.entity.Menu;
 import demo.reactividad.exception.menu.MenuNotFoundException;
@@ -82,6 +83,39 @@ class MenuServiceImplTest {
         StepVerifier.create(menuService.createMenu(request))
                 .expectNext(expected)
                 .verifyComplete();
+    }
+
+    @Test
+    void updateMenu_whenMenuExists_updatesSuccessfully() {
+        UUID menuId = UUID.randomUUID();
+        MenuUpdateRequestDTO request = new MenuUpdateRequestDTO("New Title", "New Description");
+        Menu existingMenu = new Menu("Old Title", "Old Description");
+        Menu savedMenu = new Menu("New Title", "New Description");
+        MenuResponseDTO expected = new MenuResponseDTO(menuId, "New Title", "New Description", LocalDateTime.now(), Set.of());
+
+        when(menuRepository.findById(menuId)).thenReturn(Mono.just(existingMenu));
+        when(menuRepository.save(existingMenu)).thenReturn(Mono.just(savedMenu));
+        when(foodTypeRepository.findByMenuId(menuId)).thenReturn(Flux.empty());
+        when(menuMapper.toMenuResponseDTO(savedMenu, Set.of())).thenReturn(expected);
+
+        StepVerifier.create(menuService.updateMenu(menuId, request))
+                .expectNext(expected)
+                .verifyComplete();
+
+        verify(menuMapper).updateMenuFields(existingMenu, request);
+    }
+
+    @Test
+    void updateMenu_whenMenuDoesNotExist_throwsMenuNotFoundException() {
+        UUID menuId = UUID.randomUUID();
+        MenuUpdateRequestDTO request = new MenuUpdateRequestDTO("New Title", "New Description");
+        when(menuRepository.findById(menuId)).thenReturn(Mono.empty());
+
+        StepVerifier.create(menuService.updateMenu(menuId, request))
+                .expectError(MenuNotFoundException.class)
+                .verify();
+
+        verify(menuRepository, never()).save(any(Menu.class));
     }
 
     @Test

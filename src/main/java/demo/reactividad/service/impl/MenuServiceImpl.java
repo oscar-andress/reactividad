@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import demo.reactividad.dto.request.MenuCreateRequestDTO;
+import demo.reactividad.dto.request.MenuUpdateRequestDTO;
 import demo.reactividad.dto.response.MenuResponseDTO;
 import demo.reactividad.enums.MenuCodeException;
 import demo.reactividad.exception.menu.MenuNotFoundException;
@@ -59,6 +60,21 @@ public class MenuServiceImpl implements MenuService{
                 .map(r -> menuMapper.toMenu(r))
                 .flatMap(menu -> menuRepository.save(menu))
                 .map(response -> menuMapper.toMenuResponseDTO(response, Set.of()));
+    }
+
+    @Override
+    public Mono<MenuResponseDTO> updateMenu(UUID menuId, MenuUpdateRequestDTO request) {
+        return menuRepository.findById(menuId)
+            .switchIfEmpty(Mono.error( () -> new MenuNotFoundException("Menu with id "+ menuId + " not found",
+                                                                 MenuCodeException.NOT_FOUND.name())))
+            .flatMap(menu -> {
+                menuMapper.updateMenuFields(menu, request);
+                return menuRepository.save(menu);
+            })
+            .flatMap(saved -> foodTypeRepository.findByMenuId(menuId)
+                .map(foodType -> foodTypeMapper.toFoodTypeResponseDTO(foodType))
+                .collect(Collectors.toSet())
+                .map(foodTypeDtos -> menuMapper.toMenuResponseDTO(saved, foodTypeDtos)));
     }
 
     @Override
