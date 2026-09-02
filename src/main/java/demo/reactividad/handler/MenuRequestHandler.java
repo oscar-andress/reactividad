@@ -10,6 +10,7 @@ import org.springframework.web.reactive.function.server.ServerRequest;
 import org.springframework.web.reactive.function.server.ServerResponse;
 
 import demo.reactividad.dto.request.MenuCreateRequestDTO;
+import demo.reactividad.dto.request.MenuUpdateRequestDTO;
 import demo.reactividad.enums.MenuCodeException;
 import demo.reactividad.exception.menu.MenuBadRequestException;
 import demo.reactividad.service.MenuService;
@@ -39,6 +40,14 @@ public class MenuRequestHandler {
 
     }
 
+    public Mono<ServerResponse> updateMenu (ServerRequest request) {
+        return parseMenuId(request)
+                .flatMap(menuId -> request.bodyToMono(MenuUpdateRequestDTO.class)
+                        .flatMap(this::validate)
+                        .flatMap(dto -> this.menuService.updateMenu(menuId, dto)))
+                .flatMap(responseDto -> ServerResponse.status(HttpStatus.OK).bodyValue(responseDto));
+    }
+
     public Mono<ServerResponse> deleteMenu (ServerRequest request) {
         return parseMenuId(request)
                 .flatMap(this.menuService::deleteMenu)
@@ -57,8 +66,8 @@ public class MenuRequestHandler {
         });
     }
 
-    private Mono<MenuCreateRequestDTO> validate(MenuCreateRequestDTO dto) {
-        Set<ConstraintViolation<MenuCreateRequestDTO>> violations = validator.validate(dto);
+    private <T> Mono<T> validate(T dto) {
+        Set<ConstraintViolation<T>> violations = validator.validate(dto);
         if (violations.isEmpty()) {
             return Mono.just(dto);
         }
